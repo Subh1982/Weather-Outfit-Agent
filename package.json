@@ -1,0 +1,13 @@
+{
+  "name": "weather-outfit-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Daily weather, outfit, and Uniqlo shortlist agent for GitHub Actions.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/weather-outfit-agent.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
