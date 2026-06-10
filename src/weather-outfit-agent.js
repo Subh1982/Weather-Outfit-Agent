@@ -6,7 +6,8 @@ const DEFAULTS = {
   colorPreference: "neutral colors",
   stylePreference: "minimal, comfortable, smart casual",
   brandPreference: "Uniqlo",
-  avoidPreference: "none"
+  avoidPreference: "none",
+  geminiModel: "gemini-3.5-flash"
 };
 
 const WMO_CODES = {
@@ -144,9 +145,172 @@ function buildUniqloShortlist(maxTemp, minTemp, rainChance, preferences) {
   });
 }
 
-function formatReport({ locationName, date, maxTemp, minTemp, rainChance, conditions, outfit, picks, preferences }) {
-  const pickLines = picks.map((pick) => `- [${pick.name}](${pick.url}) - ${pick.reason}`).join("\n");
-  const outfitLine = outfit.join(", ");
+function stripJsonFence(text) {
+  return text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "");
+}
+
+function withUniqloUrls(products = []) {
+  return products.slice(0, 5).map((product) => {
+    const searchQuery = product.searchQuery || product.name || "Uniqlo";
+
+    return {
+      name: product.name || searchQuery,
+      reason: product.reason || "Recommended for today's weather and your preferences.",
+      url: product.url || uniqloSearchUrl(searchQuery)
+    };
+  });
+}
+
+function buildGeminiPrompt({ locationName, date, maxTemp, minTemp, rainChance, conditions, preferences }) {
+  return `Create a daily outfit recommendation and Uniqlo AU shopping shortlist.
+
+Weather:
+- Location: ${locationName}
+- Date: ${date}
+- Conditions: ${conditions}
+- Max temperature: ${maxTemp} C
+- Min temperature: ${minTemp} C
+- Rain chance: ${rainChance}%
+
+User preferences:
+- Preferred colors: ${preferences.colorPreference}
+- Style: ${preferences.stylePreference}
+- Brand notes: ${preferences.brandPreference}
+- Avoid: ${preferences.avoidPreference}
+
+Return JSON with this exact shape:
+{
+  "summary": "One natural sentence explaining the outfit strategy.",
+  "outfitItems": ["item 1", "item 2", "item 3"],
+  "products": [
+    {
+      "name": "Uniqlo category or product search phrase",
+      "reason": "Why this is recommended for the weather and preferences.",
+      "searchQuery": "Uniqlo AU search query"
+    }
+  ]
+}
+
+Rules:
+- Recommend 3 to 6 outfit items.
+- Recommend 3 to 5 Uniqlo options.
+- Respect the avoid list.
+- Keep each reason under 26 words.
+- Use Australian weather context.
+- Use Uniqlo-searchable categories, not made-up product names.
+- Return JSON only.`;
+}
+
+async function fetchGeminiRecommendation(context, apiKey, model) {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey
+    },
+    body: JSON.stringify({
+      system_instruction: {
+        parts: [
+          {
+            text: "You are a practical clothing stylist. Return compact JSON only. Recommend only wearable clothing categories, not medical or safety advice."
+          }
+        ]
+      },
+      contents: [
+        {
+          parts: [
+            {
+              text: buildGeminiPrompt(context)
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseFormat: {
+          text: {
+            mimeType: "application/json",
+            schema: {
+              type: "object",
+              properties: {
+                summary: { type: "string" },
+                outfitItems: {
+                  type: "array",
+                  items: { type: "string" }
+                },
+                products: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      reason: { type: "string" },
+                      searchQuery: { type: "string" }
+                    },
+                    required: ["name", "reason", "searchQuery"]
+                  }
+                }
+              },
+              required: ["summary", "outfitItems", "products"]
+            }
+          }
+        },
+        temperature: 0.4
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini request failed with ${response.status}: ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("Gemini returned no recommendation text.");
+  }
+
+  const parsed = JSON.parse(stripJsonFence(text));
+
+  if (!Array.isArray(parsed.outfitItems) || !Array.isArray(parsed.products)) {
+    throw new Error("Gemini response did not include outfitItems and products arrays.");
+  }
+
+  return {
+    source: "Gemini",
+    summary: parsed.summary || "",
+    outfit: parsed.outfitItems.slice(0, 8),
+    picks: withUniqloUrls(parsed.products)
+  };
+}
+
+async function buildRecommendation(context) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = env("GEMINI_MODEL", DEFAULTS.geminiModel);
+
+  if (apiKey) {
+    try {
+      return await fetchGeminiRecommendation(context, apiKey, model);
+    } catch (error) {
+      console.warn(`Gemini unavailable, using rules fallback: ${error.message}`);
+    }
+  }
+
+  return {
+    source: apiKey ? "Rules fallback after Gemini error" : "Rules fallback - GEMINI_API_KEY not set",
+    summary: "Using local outfit rules instead of Gemini.",
+    outfit: buildOutfitAdvice(context.maxTemp, context.minTemp, context.rainChance, context.conditions),
+    picks: buildUniqloShortlist(context.maxTemp, context.minTemp, context.rainChance, context.preferences)
+  };
+}
+
+function formatReport({ locationName, date, maxTemp, minTemp, rainChance, conditions, recommendation, preferences }) {
+  const pickLines = recommendation.picks.map((pick) => `- [${pick.name}](${pick.url}) - ${pick.reason}`).join("\n");
+  const outfitLine = recommendation.outfit.join(", ");
 
   return `# Daily Weather Outfit Agent
 
@@ -155,7 +319,10 @@ function formatReport({ locationName, date, maxTemp, minTemp, rainChance, condit
 **Forecast:** ${conditions}  
 **Max temperature:** ${maxTemp.toFixed(1)}°C  
 **Min temperature:** ${minTemp.toFixed(1)}°C  
-**Rain chance:** ${rainChance}%
+**Rain chance:** ${rainChance}%  
+**Recommendation source:** ${recommendation.source}
+
+${recommendation.summary ? `_${recommendation.summary}_\n` : ""}
 
 ## What to Wear
 
@@ -213,8 +380,16 @@ async function main() {
   const minTemp = daily.temperature_2m_min[0];
   const rainChance = daily.precipitation_probability_max[0];
   const conditions = describeWeather(daily.weather_code[0]);
-  const outfit = buildOutfitAdvice(maxTemp, minTemp, rainChance, conditions);
-  const picks = buildUniqloShortlist(maxTemp, minTemp, rainChance, preferences);
+  const context = {
+    locationName: config.locationName,
+    date,
+    maxTemp,
+    minTemp,
+    rainChance,
+    conditions,
+    preferences
+  };
+  const recommendation = await buildRecommendation(context);
 
   const report = formatReport({
     locationName: config.locationName,
@@ -223,8 +398,7 @@ async function main() {
     minTemp,
     rainChance,
     conditions,
-    outfit,
-    picks,
+    recommendation,
     preferences
   });
 
