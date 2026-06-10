@@ -1,0 +1,30 @@
+name: Daily Weather Outfit Agent
+
+on:
+  schedule:
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+jobs:
+  weather-outfit:
+    runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run weather outfit agent
+        env:
+          LATITUDE: ${{ vars.LATITUDE || '-33.8688' }}
+          LONGITUDE: ${{ vars.LONGITUDE || '151.2093' }}
+          LOCATION_NAME: ${{ vars.LOCATION_NAME || 'Sydney, NSW' }}
+          TIMEZONE: ${{ vars.TIMEZONE || 'Australia/Sydney' }}
+        run: node src/weather-outfit-agent.js
