@@ -7,7 +7,7 @@ const DEFAULTS = {
   stylePreference: "minimal, comfortable, smart casual",
   brandPreference: "Uniqlo",
   avoidPreference: "none",
-  geminiModel: "gemini-3.5-flash"
+  geminiModel: "gemini-2.5-flash"
 };
 
 const WMO_CODES = {
@@ -168,6 +168,8 @@ function withUniqloUrls(products = []) {
 function buildGeminiPrompt({ locationName, date, maxTemp, minTemp, rainChance, conditions, preferences }) {
   return `Create a daily outfit recommendation and Uniqlo AU shopping shortlist.
 
+You are a practical clothing stylist. Return compact JSON only. Recommend only wearable clothing categories, not medical or safety advice.
+
 Weather:
 - Location: ${locationName}
 - Date: ${date}
@@ -213,13 +215,6 @@ async function fetchGeminiRecommendation(context, apiKey, model) {
       "x-goog-api-key": apiKey
     },
     body: JSON.stringify({
-      system_instruction: {
-        parts: [
-          {
-            text: "You are a practical clothing stylist. Return compact JSON only. Recommend only wearable clothing categories, not medical or safety advice."
-          }
-        ]
-      },
       contents: [
         {
           parts: [
