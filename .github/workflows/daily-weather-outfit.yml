@@ -51,5 +51,5 @@ jobs:
           BRAND_PREFERENCE: ${{ github.event.inputs.brand_preference || vars.BRAND_PREFERENCE || 'Uniqlo' }}
           AVOID_PREFERENCE: ${{ github.event.inputs.avoid_preference || vars.AVOID_PREFERENCE || 'none' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
         run: node src/weather-outfit-agent.js
