@@ -230,34 +230,6 @@ async function fetchGeminiRecommendation(context, apiKey, model) {
         }
       ],
       generationConfig: {
-        responseFormat: {
-          text: {
-            mimeType: "application/json",
-            schema: {
-              type: "object",
-              properties: {
-                summary: { type: "string" },
-                outfitItems: {
-                  type: "array",
-                  items: { type: "string" }
-                },
-                products: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      reason: { type: "string" },
-                      searchQuery: { type: "string" }
-                    },
-                    required: ["name", "reason", "searchQuery"]
-                  }
-                }
-              },
-              required: ["summary", "outfitItems", "products"]
-            }
-          }
-        },
         temperature: 0.4
       }
     })
