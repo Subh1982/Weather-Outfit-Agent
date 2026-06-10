@@ -23,6 +23,14 @@ on:
         description: "Items to avoid, separated by commas, for example puffer, shorts"
         required: false
         default: ""
+      debug_gemini:
+        description: "Show the Gemini prompt and parsed JSON response in logs"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 jobs:
   weather-outfit:
@@ -52,4 +60,5 @@ jobs:
           AVOID_PREFERENCE: ${{ github.event.inputs.avoid_preference || vars.AVOID_PREFERENCE || 'none' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+          DEBUG_GEMINI: ${{ github.event.inputs.debug_gemini || 'false' }}
         run: node src/weather-outfit-agent.js
