@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Weather Outfit Finder</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="control-panel" aria-labelledby="app-title">
+        <div class="title-block">
+          <p class="eyebrow">Daily Weather Outfit Finder</p>
+          <h1 id="app-title">Dress for today, then shop the right layer.</h1>
+        </div>
+
+        <form id="preference-form" class="preference-form">
+          <div class="field-row">
+            <label for="location-name">Location label</label>
+            <input id="location-name" name="locationName" type="text" value="Sydney, NSW" autocomplete="address-level2">
+          </div>
+
+          <div class="split-fields">
+            <div class="field-row">
+              <label for="latitude">Latitude</label>
+              <input id="latitude" name="latitude" type="number" step="0.0001" value="-33.8688">
+            </div>
+            <div class="field-row">
+              <label for="longitude">Longitude</label>
+              <input id="longitude" name="longitude" type="number" step="0.0001" value="151.2093">
+            </div>
+          </div>
+
+          <button class="secondary-action" id="use-location" type="button">Use my location</button>
+
+          <div class="field-row">
+            <label for="colors">Preferred colors</label>
+            <input id="colors" name="colors" type="text" value="black, navy, grey">
+          </div>
+
+          <div class="field-row">
+            <label for="style">Style preference</label>
+            <select id="style" name="style">
+              <option>minimal smart casual</option>
+              <option>relaxed casual</option>
+              <option>office-ready</option>
+              <option>sporty practical</option>
+              <option>layered winter basics</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="brand">Brand preference</label>
+            <input id="brand" name="brand" type="text" value="Uniqlo">
+          </div>
+
+          <div class="field-row">
+            <label for="avoid">Avoid</label>
+            <input id="avoid" name="avoid" type="text" placeholder="shorts, puffers, bright colors">
+          </div>
+
+          <button class="primary-action" type="submit">Get today&apos;s outfit</button>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="results-panel" aria-live="polite">
+        <div class="weather-strip">
+          <div>
+            <p class="label">Max</p>
+            <p id="max-temp" class="metric">--</p>
+          </div>
+          <div>
+            <p class="label">Min</p>
+            <p id="min-temp" class="metric">--</p>
+          </div>
+          <div>
+            <p class="label">Rain</p>
+            <p id="rain-chance" class="metric">--</p>
+          </div>
+          <div>
+            <p class="label">Forecast</p>
+            <p id="conditions" class="metric text-metric">Waiting</p>
+          </div>
+        </div>
+
+        <div class="result-section">
+          <div class="section-heading">
+            <h2>What to Wear</h2>
+            <p id="forecast-date">Run the finder to generate today&apos;s advice.</p>
+          </div>
+          <ul id="outfit-list" class="outfit-list">
+            <li>Add your preferences, then generate a recommendation.</li>
+          </ul>
+        </div>
+
+        <div class="result-section">
+          <div class="section-heading">
+            <h2>Uniqlo Shortlist</h2>
+            <p>Each pick includes why it fits today&apos;s weather and your preferences.</p>
+          </div>
+          <div id="product-list" class="product-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
