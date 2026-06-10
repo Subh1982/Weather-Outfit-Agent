@@ -2,7 +2,11 @@ const DEFAULTS = {
   latitude: "-33.8688",
   longitude: "151.2093",
   locationName: "Sydney, NSW",
-  timezone: "Australia/Sydney"
+  timezone: "Australia/Sydney",
+  colorPreference: "neutral colors",
+  stylePreference: "minimal, comfortable, smart casual",
+  brandPreference: "Uniqlo",
+  avoidPreference: "none"
 };
 
 const WMO_CODES = {
@@ -44,6 +48,11 @@ function uniqloSearchUrl(query) {
   return `https://www.uniqlo.com/au/en/search?q=${encodeURIComponent(query)}`;
 }
 
+function normalizePreference(value, fallback) {
+  const trimmed = String(value || "").trim();
+  return trimmed || fallback;
+}
+
 function describeWeather(code) {
   return WMO_CODES[code] || `weather code ${code}`;
 }
@@ -72,55 +81,70 @@ function buildOutfitAdvice(maxTemp, minTemp, rainChance, conditions) {
   return items;
 }
 
-function buildUniqloShortlist(maxTemp, rainChance) {
+function buildUniqloShortlist(maxTemp, minTemp, rainChance, preferences) {
   const picks = [];
+  const colorNote = preferences.colorPreference;
+  const styleNote = preferences.stylePreference;
+  const brandNote = preferences.brandPreference;
+  const avoidNote = preferences.avoidPreference;
 
   if (maxTemp <= 18) {
     picks.push({
       name: "HEATTECH top",
-      reason: "Thin warmth under normal clothes without making the outfit bulky.",
-      url: uniqloSearchUrl("HEATTECH top")
+      reason: `Recommended because the day is cool and a thin thermal layer adds warmth without bulk. Look for ${colorNote} so it fits your preferred palette.`,
+      url: uniqloSearchUrl(`HEATTECH top ${colorNote}`)
     });
     picks.push({
       name: "Fleece jacket",
-      reason: "Easy mid-layer for cool mornings and evenings.",
-      url: uniqloSearchUrl("Fleece Jacket")
+      reason: `Recommended as an easy mid-layer for the ${minTemp.toFixed(1)}°C morning low and your ${styleNote} style preference.`,
+      url: uniqloSearchUrl(`Fleece Jacket ${colorNote}`)
     });
     picks.push({
       name: "Ultra Light Down jacket",
-      reason: "Packable outer warmth if you will be outside after dark.",
-      url: uniqloSearchUrl("Ultra Light Down")
+      reason: `Recommended if you will be outside early or late; it adds packable warmth while staying close to the ${brandNote} preference.`,
+      url: uniqloSearchUrl(`Ultra Light Down ${colorNote}`)
     });
   } else {
     picks.push({
       name: "AIRism cotton oversized T-shirt",
-      reason: "Breathable first layer for a mild day.",
-      url: uniqloSearchUrl("AIRism cotton oversized t-shirt")
+      reason: `Recommended because the ${maxTemp.toFixed(1)}°C max is mild enough for a breathable first layer. Choose ${colorNote} to match your preference.`,
+      url: uniqloSearchUrl(`AIRism cotton oversized t-shirt ${colorNote}`)
     });
     picks.push({
       name: "Merino crew neck sweater",
-      reason: "Polished light layer that works when the temperature dips.",
-      url: uniqloSearchUrl("Merino Crew Neck Sweater")
+      reason: `Recommended as a polished light layer for cooler parts of the day and a good match for ${styleNote}.`,
+      url: uniqloSearchUrl(`Merino Crew Neck Sweater ${colorNote}`)
     });
     picks.push({
       name: "Smart ankle pants",
-      reason: "Comfortable all-day trousers for mild weather.",
-      url: uniqloSearchUrl("Smart Ankle Pants")
+      reason: `Recommended for comfortable all-day wear in mild weather, especially if you want the outfit to stay ${styleNote}.`,
+      url: uniqloSearchUrl(`Smart Ankle Pants ${colorNote}`)
     });
   }
 
   if (rainChance >= 40) {
     picks.push({
       name: "Pocketable parka",
-      reason: "Useful light shell when showers are possible.",
-      url: uniqloSearchUrl("Pocketable Parka")
+      reason: `Recommended because the rain chance is ${rainChance}%, so a light shell is useful without committing to a heavy coat.`,
+      url: uniqloSearchUrl(`Pocketable Parka ${colorNote}`)
     });
   }
 
-  return picks;
+  return picks.filter((pick) => {
+    if (/^none$/i.test(avoidNote)) {
+      return true;
+    }
+
+    return !avoidNote
+      .toLowerCase()
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .some((avoid) => pick.name.toLowerCase().includes(avoid));
+  });
 }
 
-function formatReport({ locationName, date, maxTemp, minTemp, rainChance, conditions, outfit, picks }) {
+function formatReport({ locationName, date, maxTemp, minTemp, rainChance, conditions, outfit, picks, preferences }) {
   const pickLines = picks.map((pick) => `- [${pick.name}](${pick.url}) - ${pick.reason}`).join("\n");
   const outfitLine = outfit.join(", ");
 
@@ -136,6 +160,13 @@ function formatReport({ locationName, date, maxTemp, minTemp, rainChance, condit
 ## What to Wear
 
 ${outfitLine}.
+
+## Your Preferences
+
+- Colors: ${preferences.colorPreference}
+- Style: ${preferences.stylePreference}
+- Brand notes: ${preferences.brandPreference}
+- Avoid: ${preferences.avoidPreference}
 
 ## Uniqlo Shortlist
 
@@ -168,6 +199,12 @@ async function main() {
     locationName: env("LOCATION_NAME", DEFAULTS.locationName),
     timezone: env("TIMEZONE", DEFAULTS.timezone)
   };
+  const preferences = {
+    colorPreference: normalizePreference(env("COLOR_PREFERENCE", DEFAULTS.colorPreference), DEFAULTS.colorPreference),
+    stylePreference: normalizePreference(env("STYLE_PREFERENCE", DEFAULTS.stylePreference), DEFAULTS.stylePreference),
+    brandPreference: normalizePreference(env("BRAND_PREFERENCE", DEFAULTS.brandPreference), DEFAULTS.brandPreference),
+    avoidPreference: normalizePreference(env("AVOID_PREFERENCE", DEFAULTS.avoidPreference), DEFAULTS.avoidPreference)
+  };
 
   const forecast = await fetchForecast(config);
   const daily = forecast.daily;
@@ -177,7 +214,7 @@ async function main() {
   const rainChance = daily.precipitation_probability_max[0];
   const conditions = describeWeather(daily.weather_code[0]);
   const outfit = buildOutfitAdvice(maxTemp, minTemp, rainChance, conditions);
-  const picks = buildUniqloShortlist(maxTemp, rainChance);
+  const picks = buildUniqloShortlist(maxTemp, minTemp, rainChance, preferences);
 
   const report = formatReport({
     locationName: config.locationName,
@@ -187,7 +224,8 @@ async function main() {
     rainChance,
     conditions,
     outfit,
-    picks
+    picks,
+    preferences
   });
 
   console.log(report);
