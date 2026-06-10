@@ -231,7 +231,10 @@ async function fetchGeminiRecommendation(context, apiKey, model) {
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini request failed with ${response.status}: ${await response.text()}`);
+    const errorText = await response.text();
+    const error = new Error(`Gemini request failed with ${response.status}: ${errorText}`);
+    error.status = response.status;
+    throw error;
   }
 
   const data = await response.json();
@@ -264,7 +267,7 @@ async function buildRecommendation(context) {
 
     for (const model of models) {
       try {
-        return await fetchGeminiRecommendation(context, apiKey, model);
+        return await fetchGeminiRecommendationWithRetries(context, apiKey, model);
       } catch (error) {
         errors.push(`${model}: ${error.message}`);
         console.warn(`Gemini model ${model} unavailable: ${error.message}`);
@@ -293,10 +296,42 @@ async function buildRecommendation(context) {
   };
 }
 
+async function fetchGeminiRecommendationWithRetries(context, apiKey, model) {
+  const delays = [0, 3000, 9000];
+  let lastError;
+
+  for (const delay of delays) {
+    if (delay > 0) {
+      await sleep(delay);
+    }
+
+    try {
+      return await fetchGeminiRecommendation(context, apiKey, model);
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableGeminiError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+function isRetryableGeminiError(error) {
+  return error?.status === 503 || error?.status === 429 || /UNAVAILABLE|high demand|rate/i.test(error?.message || "");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function modelCandidates(preferredModel) {
   return [
     preferredModel,
     "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
     "gemini-flash-latest",
     "gemini-3.5-flash"
   ].filter((model, index, models) => model && models.indexOf(model) === index);
