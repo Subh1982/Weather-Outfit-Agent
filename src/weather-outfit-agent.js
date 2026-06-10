@@ -248,7 +248,7 @@ async function fetchGeminiRecommendation(context, apiKey, model) {
   }
 
   return {
-    source: "Gemini",
+    source: `Gemini (${model})`,
     summary: parsed.summary || "",
     outfit: parsed.outfitItems.slice(0, 8),
     picks: withUniqloUrls(parsed.products)
@@ -257,11 +257,22 @@ async function fetchGeminiRecommendation(context, apiKey, model) {
 
 async function buildRecommendation(context) {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = env("GEMINI_MODEL", DEFAULTS.geminiModel);
+  const models = modelCandidates(env("GEMINI_MODEL", DEFAULTS.geminiModel));
 
   if (apiKey) {
+    const errors = [];
+
+    for (const model of models) {
+      try {
+        return await fetchGeminiRecommendation(context, apiKey, model);
+      } catch (error) {
+        errors.push(`${model}: ${error.message}`);
+        console.warn(`Gemini model ${model} unavailable: ${error.message}`);
+      }
+    }
+
     try {
-      return await fetchGeminiRecommendation(context, apiKey, model);
+      throw new Error(errors.join(" | "));
     } catch (error) {
       console.warn(`Gemini unavailable, using rules fallback: ${error.message}`);
 
@@ -282,6 +293,15 @@ async function buildRecommendation(context) {
   };
 }
 
+function modelCandidates(preferredModel) {
+  return [
+    preferredModel,
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-3.5-flash"
+  ].filter((model, index, models) => model && models.indexOf(model) === index);
+}
+
 function summarizeGeminiError(message) {
   const text = String(message || "Unknown Gemini error");
 
@@ -289,15 +309,11 @@ function summarizeGeminiError(message) {
     return "The API key was rejected. Recheck the GEMINI_API_KEY secret.";
   }
 
-  if (/not found|not supported|model/i.test(text)) {
-    return "The configured Gemini model may not be available for your key. Try GEMINI_MODEL=gemini-flash-latest.";
-  }
-
   if (/quota|billing|rate/i.test(text)) {
     return "The key may have quota, billing, or rate-limit restrictions.";
   }
 
-  return text.slice(0, 220);
+  return text.slice(0, 600);
 }
 
 function formatReport({ locationName, date, maxTemp, minTemp, rainChance, conditions, recommendation, preferences }) {
