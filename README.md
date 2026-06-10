@@ -9,7 +9,8 @@ It runs on GitHub Actions and writes the result to the workflow run summary.
 - Fetches today's forecast from Open-Meteo
 - Reports max temperature, min temperature, rain chance, and conditions
 - Recommends practical clothing for the day
-- Adds Uniqlo AU shopping links based on the forecast
+- Reads clothing preferences such as color, style, brand notes, and items to avoid
+- Adds Uniqlo AU shopping links based on the forecast and explains why each item was recommended
 
 ## Run Locally
 
@@ -26,6 +27,10 @@ LATITUDE="-37.8136" \
 LONGITUDE="144.9631" \
 LOCATION_NAME="Melbourne, VIC" \
 TIMEZONE="Australia/Melbourne" \
+COLOR_PREFERENCE="black, navy, grey" \
+STYLE_PREFERENCE="minimalist smart casual" \
+BRAND_PREFERENCE="Uniqlo only" \
+AVOID_PREFERENCE="shorts, bright colors" \
 npm start
 ```
 
@@ -42,10 +47,25 @@ npm start
 | `LONGITUDE` | `151.2093` |
 | `LOCATION_NAME` | `Sydney, NSW` |
 | `TIMEZONE` | `Australia/Sydney` |
+| `COLOR_PREFERENCE` | `black, navy, grey` |
+| `STYLE_PREFERENCE` | `minimalist smart casual` |
+| `BRAND_PREFERENCE` | `Uniqlo only` |
+| `AVOID_PREFERENCE` | `shorts, bright colors` |
 
 5. Open **Actions → Daily Weather Outfit Agent → Run workflow** to test it manually.
 
 The scheduled workflow is in `.github/workflows/daily-weather-outfit.yml`.
+
+## Clothing Preferences
+
+When you run the workflow manually, GitHub will ask for:
+
+- Color preference
+- Style preference
+- Brand preference
+- Items to avoid
+
+For automatic scheduled runs, the agent uses the repository variables above. If a value is missing, it uses sensible defaults.
 
 ## Schedule
 
