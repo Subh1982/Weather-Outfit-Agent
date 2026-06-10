@@ -52,7 +52,7 @@ npm start
 | `STYLE_PREFERENCE` | `minimalist smart casual` |
 | `BRAND_PREFERENCE` | `Uniqlo only` |
 | `AVOID_PREFERENCE` | `shorts, bright colors` |
-| `GEMINI_MODEL` | `gemini-3.5-flash` |
+| `GEMINI_MODEL` | `gemini-2.5-flash` |
 
 5. Open **Actions → Daily Weather Outfit Agent → Run workflow** to test it manually.
 
