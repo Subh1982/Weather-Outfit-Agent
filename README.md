@@ -67,6 +67,24 @@ When you run the workflow manually, GitHub will ask for:
 
 For automatic scheduled runs, the agent uses the repository variables above. If a value is missing, it uses sensible defaults.
 
+## Web App
+
+This repository also includes a browser version in the `docs` folder:
+
+- `docs/index.html`
+- `docs/styles.css`
+- `docs/app.js`
+
+To use it locally, open `docs/index.html` in a browser. To publish it on GitHub Pages:
+
+1. Open your repository on GitHub.
+2. Go to **Settings → Pages**.
+3. Under **Build and deployment**, choose **Deploy from a branch**.
+4. Set the branch to `main` and the folder to `/docs`.
+5. Click **Save**.
+
+The web app asks for clothing preferences, can use browser location when permission is granted, checks today's weather, recommends what to wear, and links to Uniqlo searches with reasons for each recommendation.
+
 ## Schedule
 
 The workflow is scheduled with GitHub's UTC cron. The included schedule runs at approximately 7:00 AM Sydney standard time:
