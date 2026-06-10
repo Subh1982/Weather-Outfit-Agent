@@ -297,15 +297,40 @@ async function buildRecommendation(context) {
       return await fetchGeminiRecommendation(context, apiKey, model);
     } catch (error) {
       console.warn(`Gemini unavailable, using rules fallback: ${error.message}`);
+
+      return {
+        source: "Rules fallback after Gemini error",
+        summary: `Using local outfit rules instead of Gemini. Gemini error: ${summarizeGeminiError(error.message)}`,
+        outfit: buildOutfitAdvice(context.maxTemp, context.minTemp, context.rainChance, context.conditions),
+        picks: buildUniqloShortlist(context.maxTemp, context.minTemp, context.rainChance, context.preferences)
+      };
     }
   }
 
   return {
-    source: apiKey ? "Rules fallback after Gemini error" : "Rules fallback - GEMINI_API_KEY not set",
+    source: "Rules fallback - GEMINI_API_KEY not set",
     summary: "Using local outfit rules instead of Gemini.",
     outfit: buildOutfitAdvice(context.maxTemp, context.minTemp, context.rainChance, context.conditions),
     picks: buildUniqloShortlist(context.maxTemp, context.minTemp, context.rainChance, context.preferences)
   };
+}
+
+function summarizeGeminiError(message) {
+  const text = String(message || "Unknown Gemini error");
+
+  if (/API_KEY_INVALID|invalid api key|permission denied/i.test(text)) {
+    return "The API key was rejected. Recheck the GEMINI_API_KEY secret.";
+  }
+
+  if (/not found|not supported|model/i.test(text)) {
+    return "The configured Gemini model may not be available for your key. Try GEMINI_MODEL=gemini-flash-latest.";
+  }
+
+  if (/quota|billing|rate/i.test(text)) {
+    return "The key may have quota, billing, or rate-limit restrictions.";
+  }
+
+  return text.slice(0, 220);
 }
 
 function formatReport({ locationName, date, maxTemp, minTemp, rainChance, conditions, recommendation, preferences }) {
