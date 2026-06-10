@@ -45,6 +45,10 @@ function env(name, fallback) {
   return process.env[name] || fallback;
 }
 
+function isEnabled(name) {
+  return /^(1|true|yes)$/i.test(process.env[name] || "");
+}
+
 function uniqloSearchUrl(query) {
   return `https://www.uniqlo.com/au/en/search?q=${encodeURIComponent(query)}`;
 }
@@ -208,6 +212,12 @@ Rules:
 }
 
 async function fetchGeminiRecommendation(context, apiKey, model) {
+  const prompt = buildGeminiPrompt(context);
+
+  if (isEnabled("DEBUG_GEMINI")) {
+    console.log(`\n## Gemini Prompt\n\n\`\`\`text\n${prompt}\n\`\`\`\n`);
+  }
+
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: {
@@ -219,7 +229,7 @@ async function fetchGeminiRecommendation(context, apiKey, model) {
         {
           parts: [
             {
-              text: buildGeminiPrompt(context)
+              text: prompt
             }
           ]
         }
@@ -245,6 +255,10 @@ async function fetchGeminiRecommendation(context, apiKey, model) {
   }
 
   const parsed = JSON.parse(stripJsonFence(text));
+
+  if (isEnabled("DEBUG_GEMINI")) {
+    console.log(`\n## Gemini JSON Response\n\n\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\`\n`);
+  }
 
   if (!Array.isArray(parsed.outfitItems) || !Array.isArray(parsed.products)) {
     throw new Error("Gemini response did not include outfitItems and products arrays.");
